@@ -115,6 +115,10 @@ void draw_minimap(struct GameEngine *g)
         
     }
   } 
+  size_t nxp, nyp;
+  nxp = PLAYER_SIZE / g->player.direction.x;
+  nyp = PLAYER_SIZE / g->player.direction.y;
+  
   g->inputs.p = false;
 }
 
@@ -144,14 +148,32 @@ void draw(struct GameEngine *g)
   update_draw(&g->game);
 }
 
-/* maybe in the future, join everything in the Game struct, so no need to */
-/* pass lots of parameters */
+
+/* The code goes like:                                                          */
+/*  - from the player position + direction, trace the camera plane              */
+/*    this plane goes to -1 to +1 with the 0 on the end of the                  */
+/*    player + position vector                                                  */
+/*  - the numeber of rays casted is the same of pixel columns for the screen    */
+/*    which means -1 is the column 0 and +1 is the column (GAME_WIDTH - 1)      */
+/*  - for this camera plane, mesure the step size needed to go to the next      */
+/*    cell in the map, both in X and Y                                          */
+/*  - calculate how much you need to walk to reach the next cell, both in X and */
+/*    Y                                                                         */
+/*  - interate over it until you find the next non empty cell, always adding to */
+/*    the smaller walking vector, one step unit at time                         */
+/*  - if the ray is longer than the map, or if you hit a wall, break out from   */
+/*    the loop and calculate the correct distance to avoid the fish eye         */
+/*    effect                                                                    */
+/*  - set the distance to the Z-Buffer, you will need it latter.                */
+/*  - draw the line, apply texture and maybe a fog effect.                      */
 
 void cast_rays(struct GameEngine *g)
 {
 
 }
 
+/* add code to bound the player to the map and slide */
+/* on the walls */
 void update_player(struct GameEngine *g, double delta_ms)
 {
   double proportion = (double)(delta_ms / 1000);
