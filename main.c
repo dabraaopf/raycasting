@@ -9,8 +9,8 @@
 
 const int GAME_WIDTH = 800;
 const int GAME_HEIGHT = 600;
-const char GAME_WINDOW_NAME[100] = "GameWindow";
-const float STEP_SIZE = 2.0f;
+const char GAME_WINDOW_NAME[100] = "Raycasting";
+const float STEP_SIZE = 2.5f;
 const float PI = 3.1415;
 const float TURN_ANGLE = PI / 1.2f;
 const short SQUARE_SIZE = 10;
@@ -67,11 +67,11 @@ void draw_minimap(struct GameEngine *g)
 {
   size_t i, j, k, w, index, value;
   uint32_t color;
-  for (i=0;i<g->map.rows;++i)
+  for (i=0;i<g->map.cols;++i)
   {
-    for (j=0;j<g->map.cols;++j)
+    for (j=0;j<g->map.rows;++j)
     {
-      index = i*g->map.cols + j;
+      index = j*g->map.cols + i;
       value = g->map.cells[index];
       if (value == 0)
       {
@@ -97,11 +97,11 @@ void draw_minimap(struct GameEngine *g)
       } 
     }
   }
+
   size_t pxp, pyp;
-  pxp = SQUARE_SIZE + g->player.position.x * SQUARE_SIZE - 1;
-  pyp = SQUARE_SIZE + g->player.position.y * SQUARE_SIZE - 1;
+  pxp = SQUARE_SIZE+(g->player.position.x*SQUARE_SIZE)+(g->player.position.x*BORDER_SIZE*2)-1;
+  pyp = SQUARE_SIZE+(g->player.position.y*SQUARE_SIZE)+(g->player.position.y*BORDER_SIZE*2)-1;
   color = rgb(255,0,0, &g->game);
-   
   for (w = 0; w < PLAYER_SIZE; ++w)
   {
     for (k=0; k< PLAYER_SIZE;++k)
@@ -115,26 +115,42 @@ void draw_minimap(struct GameEngine *g)
         
     }
   } 
-  size_t nxp, nyp;
-  nxp = PLAYER_SIZE / g->player.direction.x;
-  nyp = PLAYER_SIZE / g->player.direction.y;
+
+  float nxp, nyp;
+  nxp = PLAYER_SIZE * g->player.direction.x;
+  nyp = PLAYER_SIZE * g->player.direction.y;
+  float pxn, pyn;
+  pxn = pxp + (PLAYER_SIZE / 2);
+  pyn = pyp + (PLAYER_SIZE / 2);
+  color = rgb(0,0,255, &g->game);
+  for(w = 0; w < PLAYER_SIZE * 1.5; ++w)
+  {
+      pixel(
+          (int) pxn + (w*nxp),
+          (int) pyn + (w*nyp),
+          color,
+          g->game.surface->pixels
+        );
+  }
   
-  g->inputs.p = false;
 }
 
 void draw_background(struct Game *g)
 {
   int i = 0;
   int j = 0;
+  uint32_t color_top, color_bottom;
+  color_top = rgb(0,255,0, g);
+  color_bottom = rgb(0,0,255, g);
   for(i=0;i<g->height;++i)
   {
     for(j=0;j<g->width;++j)
     {
       if (i<g->height/2)
-      { pixel(j, i,rgb(0,255,0, g), g->surface->pixels); }
+      { pixel(j, i,color_top, g->surface->pixels); }
       else
       {
-        pixel(j, i,rgb(0,0,255, g), g->surface->pixels);
+        pixel(j, i,color_bottom, g->surface->pixels);
       }
     }
   }
@@ -176,25 +192,61 @@ void cast_rays(struct GameEngine *g)
 /* on the walls */
 void update_player(struct GameEngine *g, double delta_ms)
 {
-  double proportion = (double)(delta_ms / 1000);
+  double proportion = (double)(STEP_SIZE / 1000 * delta_ms);
+  size_t x_map, y_map;
   if (g->inputs.w)
   {
-    g->player.position.x += STEP_SIZE * proportion  * g->player.direction.x;
-    g->player.position.y += STEP_SIZE * proportion * g->player.direction.y;
+    x_map = (int)(g->player.position.x+proportion*g->player.direction.x);
+    y_map = (int)(g->player.position.y);
+    if (x_map >= 0 && x_map < g->map.cols &&
+        y_map >= 0 && y_map < g->map.rows && 
+        g->map.cells[y_map*g->map.cols+x_map] < 10
+      )
+    {
+      g->player.position.x +=  proportion  * g->player.direction.x;
+    }
+    x_map = (int)(g->player.position.x);
+    y_map = (int)(g->player.position.y+proportion*g->player.direction.y);
+    if (x_map >= 0 && x_map < g->map.cols &&
+        y_map >= 0 && y_map < g->map.rows && 
+        g->map.cells[y_map*g->map.cols+x_map] < 10
+      )
+    {
+      g->player.position.y +=  proportion * g->player.direction.y;
+    }
   }
   if (g->inputs.s)
   {
-    g->player.position.x -= STEP_SIZE * proportion * g->player.direction.x;
-    g->player.position.y -= STEP_SIZE * proportion * g->player.direction.y;
-  }
-  if (g->inputs.a)
-  {
-    rotateV2f(&g->player.direction, TURN_ANGLE * proportion);
+    x_map = (int)(g->player.position.x-proportion*g->player.direction.x);
+    y_map = (int)(g->player.position.y);
+    if (x_map >= 0 && x_map < g->map.cols &&
+        y_map >= 0 && y_map < g->map.rows && 
+        g->map.cells[y_map*g->map.cols+x_map] < 10
+      )
+    {
+      g->player.position.x -=  proportion * g->player.direction.x;
+    }
+
+    x_map = (int)(g->player.position.x);
+    y_map = (int)(g->player.position.y-proportion*g->player.direction.y);
+    if (x_map >= 0 && x_map < g->map.cols &&
+        y_map >= 0 && y_map < g->map.rows && 
+        g->map.cells[y_map*g->map.cols+x_map] < 10
+      )
+    {
+      g->player.position.y -=  proportion * g->player.direction.y;
+    }
   }
 
+  proportion = (double)(TURN_ANGLE * delta_ms / 1000);
   if (g->inputs.d)
   {
-    rotateV2f(&g->player.direction, TURN_ANGLE * proportion * (-1));
+    rotateV2f(&g->player.direction, proportion);
+  }
+
+  if (g->inputs.a)
+  {
+    rotateV2f(&g->player.direction, proportion * (-1));
   }
 }
 
@@ -248,7 +300,9 @@ int main(int argc, char *argv[])
     /*struct Player player;*/
     /*struct Map map;*/
     struct timeval current, last;
-    double delta_ms;
+    double delta_ms, acum;
+    int frames = 0;
+    acum = 0.0f;
     gettimeofday(&last, NULL);
     g.player.position.x = 3.0f;
     g.player.position.y = 3.0f;
@@ -278,6 +332,19 @@ int main(int argc, char *argv[])
       if (delta_ms < 0)
       {
         delta_ms = 0;
+      }
+      acum += delta_ms;
+      frames++;
+      if (acum > 1000.0f)
+      {
+        printf("FPS: %i in %f\n",frames, acum);
+        acum = 0.0f;
+        frames =  0;
+      }
+      if (g.inputs.p)
+      {
+        printf("check\n");
+        g.inputs.p=false;
       }
       if(!update(&g, delta_ms))
       {
