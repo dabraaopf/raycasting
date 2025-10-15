@@ -10,9 +10,10 @@
 const int GAME_WIDTH = 800;
 const int GAME_HEIGHT = 600;
 const char GAME_WINDOW_NAME[100] = "Raycasting";
-const float STEP_SIZE = 2.5f;
-const float PI = 3.1415;
-const float TURN_ANGLE = PI / 1.2f;
+const double STEP_SIZE = 2.5;
+const double PI = 3.1415;
+const double TURN_ANGLE = PI / 1.2;
+const double MS_TO_SEC = 1000.0;
 const short SQUARE_SIZE = 10;
 const short BORDER_SIZE = 1;
 const short PLAYER_SIZE = 3;
@@ -116,10 +117,10 @@ void draw_minimap(struct GameEngine *g)
     }
   } 
 
-  float nxp, nyp;
+  double nxp, nyp;
   nxp = PLAYER_SIZE * g->player.direction.x;
   nyp = PLAYER_SIZE * g->player.direction.y;
-  float pxn, pyn;
+  double pxn, pyn;
   pxn = pxp + (PLAYER_SIZE / 2);
   pyn = pyp + (PLAYER_SIZE / 2);
   color = rgb(0,0,255, &g->game);
@@ -185,14 +186,106 @@ void draw(struct GameEngine *g)
 
 void cast_rays(struct GameEngine *g)
 {
-
+  size_t x;
+  double camera_pos;
+  Vec2f camera_plane = {0.0f};
+  Vec2f step = {0.0f};
+  Vec2f walked = {0.0f};
+  Vec2f hit_spot = {0};
+  bool hit_x;
+  bool hit_y;
+  bool exited = false;
+  for (x = 0; x < g->game.width; ++x)
+  {
+    hit_x = false;
+    hit_y = false;
+    exited = false;
+    camera_pos = ((double)x / (g->game.width/2.0)) - 1;
+    camera_plane.x = camera_pos * g->player.direction.y + g->player.direction.x; 
+    camera_plane.y = camera_pos * g->player.direction.x + g->player.direction.y;
+    step.x = 1.0;
+    if (camera_plane.y != 0.0)
+    {
+      step.x = camera_plane.x / camera_plane.y;
+    }
+    step.y = 1.0 - step.x; 
+    if (step.x == 0.0)
+    {
+      step.x = 1e10f;
+    }
+    if (step.y == 0.0)
+    {
+      step.y = 1e10f;
+    }
+    if (camera_plane.x > 0)
+    {
+      walked.x = floor(g->player.position.x + 1) - g->player.position.x;
+    }
+    else
+    {
+      walked.x = g->player.position.x - floor(g->player.position.x);
+      walked.x *= -1;
+      step.x *= -1;
+    }
+    if (camera_plane.y > 0)
+    {
+      walked.y = floor(g->player.position.y + 1) - g->player.position.y;
+    }
+    else
+    {
+      walked.y = g->player.position.y - floor(g->player.position.y);
+      walked.y *= -1;
+      step.y *= -1;
+    }
+    hit_spot.x = g->player.position.x;
+    hit_spot.y = g->player.position.y;
+    while (!hit_x && !hit_y && !exited)
+    {
+      if (abs(walked.y) > abs(walked.x))
+      {
+        hit_spot.x = g->player.position.x + walked.x;
+        hit_spot.y = hit_spot.y;
+        walked.x += step.x;
+        if (hit_spot.x < 0 || hit_spot.x >= g->map.cols)
+        {
+          exited = true;
+        }
+        else if (g->map.cells[(int)(floor(hit_spot.y) * g->map.cols + floor(hit_spot.x))] > 9)
+        {
+          hit_x = true;
+        }
+      }
+      else
+      {
+        hit_spot.y = g->player.position.y + walked.y;
+        hit_spot.x = hit_spot.x;
+        walked.y += step.y;
+        if (hit_spot.y < 0 || hit_spot.y >= g->map.rows)
+        {
+          exited = true;
+        }
+        else if (g->map.cells[(int)(floor(hit_spot.y) * g->map.cols + floor(hit_spot.x))] > 9)
+        {
+          hit_y = true;
+        }
+      }
+    }
+    if (g->inputs.p)
+    {
+      printf("Hit_x: %b, hit_y: %b, hit_pos.x: %lf, hit_pos.y: %lf\n", 
+          hit_x, hit_y, hit_spot.x, hit_spot.y);
+      printf("Walked_x: %lf, Walked_y: %lf, step.x: %lf, step.y: %lf\n", 
+          walked.x, walked.y, step.x, step.y);
+    }
+  }
+  g->inputs.p = false;
 }
 
 /* add code to bound the player to the map and slide */
 /* on the walls */
 void update_player(struct GameEngine *g, double delta_ms)
 {
-  double proportion = (double)(STEP_SIZE / 1000 * delta_ms);
+  double proportion = STEP_SIZE / MS_TO_SEC * delta_ms;
   size_t x_map, y_map;
   if (g->inputs.w)
   {
@@ -203,7 +296,7 @@ void update_player(struct GameEngine *g, double delta_ms)
         g->map.cells[y_map*g->map.cols+x_map] < 10
       )
     {
-      g->player.position.x +=  proportion  * g->player.direction.x;
+      g->player.position.x += proportion  * g->player.direction.x;
     }
     x_map = (int)(g->player.position.x);
     y_map = (int)(g->player.position.y+proportion*g->player.direction.y);
@@ -224,7 +317,7 @@ void update_player(struct GameEngine *g, double delta_ms)
         g->map.cells[y_map*g->map.cols+x_map] < 10
       )
     {
-      g->player.position.x -=  proportion * g->player.direction.x;
+      g->player.position.x -= proportion * g->player.direction.x;
     }
 
     x_map = (int)(g->player.position.x);
@@ -234,11 +327,11 @@ void update_player(struct GameEngine *g, double delta_ms)
         g->map.cells[y_map*g->map.cols+x_map] < 10
       )
     {
-      g->player.position.y -=  proportion * g->player.direction.y;
+      g->player.position.y -= proportion * g->player.direction.y;
     }
   }
 
-  proportion = (double)(TURN_ANGLE * delta_ms / 1000);
+  proportion = TURN_ANGLE * delta_ms / MS_TO_SEC;
   if (g->inputs.d)
   {
     rotateV2f(&g->player.direction, proportion);
@@ -302,12 +395,12 @@ int main(int argc, char *argv[])
     struct timeval current, last;
     double delta_ms, acum;
     int frames = 0;
-    acum = 0.0f;
+    acum = 0.0;
     gettimeofday(&last, NULL);
-    g.player.position.x = 3.0f;
-    g.player.position.y = 3.0f;
-    g.player.direction.x = 0.0f;
-    g.player.direction.y = 1.0f;
+    g.player.position.x = 3.0;
+    g.player.position.y = 3.0;
+    g.player.direction.x = 0.0;
+    g.player.direction.y = 1.0;
     g.rays.rays = malloc(sizeof(struct Ray) * GAME_WIDTH);
     g.rays.length = GAME_WIDTH;
     g.game.name = &GAME_WINDOW_NAME;
@@ -327,7 +420,7 @@ int main(int argc, char *argv[])
     while(1)
     {
       gettimeofday(&current, NULL);
-      delta_ms = (current.tv_usec - last.tv_usec) / 1000;
+      delta_ms = (current.tv_usec - last.tv_usec) / MS_TO_SEC;
       gettimeofday(&last, NULL);
       if (delta_ms < 0)
       {
@@ -335,16 +428,11 @@ int main(int argc, char *argv[])
       }
       acum += delta_ms;
       frames++;
-      if (acum > 1000.0f)
+      if (acum > MS_TO_SEC)
       {
         printf("FPS: %i in %f\n",frames, acum);
         acum = 0.0f;
         frames =  0;
-      }
-      if (g.inputs.p)
-      {
-        printf("check\n");
-        g.inputs.p=false;
       }
       if(!update(&g, delta_ms))
       {

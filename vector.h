@@ -11,8 +11,8 @@ struct Vec2int
 
 struct Vec2float
 {
-  float x;
-  float y;
+  double x;
+  double y;
 };
 
 struct Vec3int

@@ -149,7 +149,7 @@ void rotateV2i(Vec2i *vec, float angle_rad)
 
 void rotateV2f(Vec2f *vec, float angle_rad)
 {
-  vec->x = (float) ((vec->x * cos(angle_rad)) - (vec->y * sin(angle_rad)));
-  vec->y = (float) ((vec->x * sin(angle_rad)) + (vec->y * cos(angle_rad)));
+  vec->x = (double) ((vec->x * cos(angle_rad)) - (vec->y * sin(angle_rad)));
+  vec->y = (double) ((vec->x * sin(angle_rad)) + (vec->y * cos(angle_rad)));
 }
 
