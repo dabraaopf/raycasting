@@ -187,11 +187,12 @@ void draw(struct GameEngine *g)
 void cast_rays(struct GameEngine *g)
 {
   size_t x;
-  double camera_pos;
+  double camera_pos, proportion;
   Vec2f camera_plane = {0.0f};
   Vec2f step = {0.0f};
   Vec2f walked = {0.0f};
-  Vec2f hit_spot = {0};
+  Vec2i map_position = {0};
+  Vec2f hip = {0.0};
   bool hit_x;
   bool hit_y;
   bool exited = false;
@@ -203,77 +204,72 @@ void cast_rays(struct GameEngine *g)
     camera_pos = ((double)x / (g->game.width/2.0)) - 1;
     camera_plane.x = camera_pos * g->player.direction.y + g->player.direction.x; 
     camera_plane.y = camera_pos * g->player.direction.x + g->player.direction.y;
-    step.x = 1.0;
+    proportion = 1e10;
     if (camera_plane.y != 0.0)
     {
-      step.x = camera_plane.x / camera_plane.y;
+      proportion = abs(camera_plane.x / camera_plane.y);
     }
-    step.y = 1.0 - step.x; 
-    if (step.x == 0.0)
+    hip.x = 1.0 * proportion;
+    hip.y = 1e10;
+    if (proportion != 0)
     {
-      step.x = 1e10f;
-    }
-    if (step.y == 0.0)
-    {
-      step.y = 1e10f;
+      hip.y = 1.0 / proportion;
     }
     if (camera_plane.x > 0)
     {
       walked.x = floor(g->player.position.x + 1) - g->player.position.x;
+      step.x = 1;
     }
     else
     {
       walked.x = g->player.position.x - floor(g->player.position.x);
-      walked.x *= -1;
-      step.x *= -1;
+      step.x = -1;
     }
     if (camera_plane.y > 0)
     {
       walked.y = floor(g->player.position.y + 1) - g->player.position.y;
+      step.y = 1;
     }
     else
     {
       walked.y = g->player.position.y - floor(g->player.position.y);
-      walked.y *= -1;
-      step.y *= -1;
+      step.y = -1;
     }
-    hit_spot.x = g->player.position.x;
-    hit_spot.y = g->player.position.y;
+    map_position.x = floor(g->player.position.x);
+    map_position.y = floor(g->player.position.y);
     while (!hit_x && !hit_y && !exited)
     {
-      if (abs(walked.y) > abs(walked.x))
+      if (walked.y + hip.y > walked.x + hip.x)
       {
-        hit_spot.x = g->player.position.x + walked.x;
-        hit_spot.y = hit_spot.y;
-        walked.x += step.x;
-        if (hit_spot.x < 0 || hit_spot.x >= g->map.cols)
+        map_position.x += step.x;
+        walked.x += hip.x;
+        if (map_position.x < 0 || map_position.x >= g->map.cols)
         {
           exited = true;
         }
-        else if (g->map.cells[(int)(floor(hit_spot.y) * g->map.cols + floor(hit_spot.x))] > 9)
+        else if (g->map.cells[map_position.y * g->map.cols + map_position.x] > 9)
         {
           hit_x = true;
-        }
+        } 
       }
       else
       {
-        hit_spot.y = g->player.position.y + walked.y;
-        hit_spot.x = hit_spot.x;
-        walked.y += step.y;
-        if (hit_spot.y < 0 || hit_spot.y >= g->map.rows)
+        map_position.y += step.y;
+        walked.y += hip.y;
+        if (map_position.y < 0 || map_position.y >= g->map.rows)
         {
           exited = true;
         }
-        else if (g->map.cells[(int)(floor(hit_spot.y) * g->map.cols + floor(hit_spot.x))] > 9)
+        else if (g->map.cells[map_position.y * g->map.cols + map_position.x] > 9)
         {
           hit_y = true;
-        }
+        } 
       }
     }
     if (g->inputs.p)
     {
       printf("Hit_x: %b, hit_y: %b, hit_pos.x: %lf, hit_pos.y: %lf\n", 
-          hit_x, hit_y, hit_spot.x, hit_spot.y);
+          hit_x, hit_y, map_position.x, map_position.y);
       printf("Walked_x: %lf, Walked_y: %lf, step.x: %lf, step.y: %lf\n", 
           walked.x, walked.y, step.x, step.y);
     }
