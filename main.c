@@ -14,6 +14,7 @@ const double STEP_SIZE = 2.5;
 const double PI = 3.1415;
 const double TURN_ANGLE = PI / 1.2;
 const double MS_TO_SEC = 1000.0;
+const double INFINITY = 1e10;
 const short SQUARE_SIZE = 10;
 const short BORDER_SIZE = 1;
 const short PLAYER_SIZE = 3;
@@ -189,7 +190,7 @@ void cast_rays(struct GameEngine *g)
   size_t x;
   double camera_pos, proportion;
   Vec2f camera_plane = {0.0f};
-  Vec2f step = {0.0f};
+  Vec2i step = {0}; 
   Vec2f walked = {0.0f};
   Vec2i map_position = {0};
   Vec2f hip = {0.0};
@@ -204,13 +205,13 @@ void cast_rays(struct GameEngine *g)
     camera_pos = ((double)x / (g->game.width/2.0)) - 1;
     camera_plane.x = camera_pos * g->player.direction.y + g->player.direction.x; 
     camera_plane.y = camera_pos * g->player.direction.x + g->player.direction.y;
-    proportion = 1e10;
+    proportion = INFINITY;
     if (camera_plane.y != 0.0)
     {
       proportion = abs(camera_plane.x / camera_plane.y);
     }
     hip.x = 1.0 * proportion;
-    hip.y = 1e10;
+    hip.y = INFINITY;
     if (proportion != 0)
     {
       hip.y = 1.0 / proportion;
@@ -235,8 +236,8 @@ void cast_rays(struct GameEngine *g)
       walked.y = g->player.position.y - floor(g->player.position.y);
       step.y = -1;
     }
-    map_position.x = floor(g->player.position.x);
-    map_position.y = floor(g->player.position.y);
+    map_position.x = (int) floor(g->player.position.x);
+    map_position.y = (int) floor(g->player.position.y);
     while (!hit_x && !hit_y && !exited)
     {
       if (walked.y + hip.y > walked.x + hip.x)
@@ -266,15 +267,27 @@ void cast_rays(struct GameEngine *g)
         } 
       }
     }
-    if (g->inputs.p)
+    if (exited)
     {
-      printf("Hit_x: %b, hit_y: %b, hit_pos.x: %lf, hit_pos.y: %lf\n", 
-          hit_x, hit_y, map_position.x, map_position.y);
-      printf("Walked_x: %lf, Walked_y: %lf, step.x: %lf, step.y: %lf\n", 
-          walked.x, walked.y, step.x, step.y);
+      g->rays.rays[x].height = 0.0f;
+      g->rays.rays[x].z_index = INFINITY;
+      g->rays.rays[x].texture = 0;
+    }
+    else
+    {
+      if (hit_x)
+      {
+        g->rays.rays[x].height = floor(g->game.height / (walked.x - hip.x));
+        g->rays.rays[x].z_index = walked.x;
+      }
+      else
+      {
+        g->rays.rays[x].height = floor(g->game.height / (walked.y - hip.y));
+        g->rays.rays[x].z_index = walked.y;
+      }
+      g->rays.rays[x].texture = g->map.cells[map_position.y * g->map.cols + map_position.x];
     }
   }
-  g->inputs.p = false;
 }
 
 /* add code to bound the player to the map and slide */
