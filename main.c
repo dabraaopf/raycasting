@@ -28,9 +28,11 @@ struct Map
 
 struct Ray
 {
-  float height;
-  float z_index;
+  int height;
+  double z_index;
   int texture;
+  float hit_point;
+  Vec2f camera_plane;
 };
 
 struct Rays 
@@ -134,7 +136,119 @@ void draw_minimap(struct GameEngine *g)
           g->game.surface->pixels
         );
   }
+
+  color = rgb(255,0,255, &g->game);
+  draw_line(
+      g,
+      0.0,
+      0.0,
+      10.0,
+      10.0,
+      color
+  );
+  double dx, dy, step_x, step_y;
+  for (i=0;i<g->game.width;++i)
+  {
+    if (g->rays.rays[i].z_index != 0.0)
+    {
+      draw_line(
+          g,
+          g->player.position.x,
+          g->player.position.y,
+          g->rays.rays[i].camera_plane.x,
+          g->rays.rays[i].camera_plane.y,
+          color
+      );
+    }
+  }
+  g->inputs.p = false;
   
+}
+
+void draw_line(struct GameEngine *g, double x, double y, double w, double h, uint32_t color)
+{
+  double pxp, pyp;
+  double destx, desty;
+  pxp = SQUARE_SIZE+(x*(double)SQUARE_SIZE)+(x*(double)BORDER_SIZE*2.0)-1.0;
+  pyp = SQUARE_SIZE+(y*(double)SQUARE_SIZE)+(y*(double)BORDER_SIZE*2.0)-1.0;
+  destx = pxp+(w*(double)SQUARE_SIZE)+(w*(double)BORDER_SIZE)-1.0;
+  desty = pyp+(h*(double)SQUARE_SIZE)+(h*(double)BORDER_SIZE)-1.0;
+  size_t i, j; 
+  double dx, dy;
+
+  if (g->inputs.p)
+  {
+    printf("pxp: %lf\tpyp: %lf\tdestx: %lf\tdesty: %lf\tw: %lf\th: %lf\n", 
+        pxp, pyp, destx, desty, w, h
+    );
+  }
+  if (abs(destx) < abs(desty))
+  {
+    dx = 1.0;
+    if (destx != 0.0)
+    {
+      dy = desty / destx;
+    }
+    else
+    {
+      dy = 0.0;
+    }
+    if (desty < 0.0 && dy > 0.0 || desty > 0.0 && dy < 0.0)
+    {
+      dy *= -1.0;
+    }
+    if (destx < 0.0)
+    {
+      dx *= -1.0;
+    }
+    j = (int) ceil(destx);
+  }
+  else
+  {
+    dy = 1.0;
+    if (desty != 0.0)
+    {
+      dx = destx / desty;
+    }
+    else
+    {
+      dx = 0.0;
+    }
+    if (destx < 0.0 && dx > 0.0 || destx > 0.0 && dx < 0.0)
+    {
+      dx *= -1.0;
+    }
+    if (desty < 0.0)
+    {
+      dy *= -1.0;
+    }
+    j = (int) ceil(desty);
+  }
+  if (g->inputs.p)
+  {
+    printf("dx: %lf\tdy: %lf\tdestx: %lf\tdesty: %lf\tw: %lf\th: %lf\n", 
+        dx, dy, destx, desty, w, h
+    );
+  }
+  for (i = 0; i < j; ++i)
+  {
+    pixel(
+        (int) (destx),
+        (int) (desty),
+        color,
+        g->game.surface->pixels
+    );
+    break;
+  }
+}
+
+double absff(double value)
+{
+  if (value < 0.0)
+  {
+    return value * -1;
+  }
+  return value;
 }
 
 void draw_background(struct Game *g)
@@ -191,49 +305,66 @@ void cast_rays(struct GameEngine *g)
   double camera_pos, proportion;
   Vec2f camera_plane = {0.0f};
   Vec2i step = {0}; 
-  Vec2f walked = {0.0f};
+  Vec2f walked = {0.0};
   Vec2i map_position = {0};
   Vec2f hip = {0.0};
   bool hit_x;
   bool hit_y;
   bool exited = false;
+  double hit_point;
+  double true_walk;
   for (x = 0; x < g->game.width; ++x)
   {
     hit_x = false;
     hit_y = false;
     exited = false;
-    camera_pos = ((double)x / (g->game.width/2.0)) - 1;
-    camera_plane.x = camera_pos * g->player.direction.y + g->player.direction.x; 
-    camera_plane.y = camera_pos * g->player.direction.x + g->player.direction.y;
-    proportion = INFINITY;
+    camera_pos = ((double)x / (g->game.width/2.0)) - 1.0;
+    camera_plane.x = camera_pos * (g->player.direction.y) + g->player.direction.x; 
+    camera_plane.y = camera_pos * (g->player.direction.x) + g->player.direction.y; 
+    if (g->inputs.p)
+    {
+      printf("Camera x: %lf\tCamera y: %lf\t, Direction X: %lf\tDirection Y: %lf\n", 
+          camera_plane.x, camera_plane.y,
+          g->player.direction.x,
+          g->player.direction.y );
+    }
+    hip.x = INFINITY;
     if (camera_plane.y != 0.0)
     {
-      proportion = abs(camera_plane.x / camera_plane.y);
+      hip.x = camera_plane.x / camera_plane.y;
+      if (hip.x < 0)
+      {
+        hip.x *= -1;
+      }
     }
-    hip.x = 1.0 * proportion;
     hip.y = INFINITY;
-    if (proportion != 0)
+    if (camera_plane.x != 0.0)
     {
-      hip.y = 1.0 / proportion;
+      hip.y = camera_plane.y / camera_plane.x;
+      if (hip.y < 0) 
+      {
+        hip.y *= -1;
+      }
     }
+
     if (camera_plane.x > 0)
     {
-      walked.x = floor(g->player.position.x + 1) - g->player.position.x;
+      walked.x = (double)(floor(g->player.position.x + 1) - g->player.position.x);
       step.x = 1;
     }
     else
     {
-      walked.x = g->player.position.x - floor(g->player.position.x);
+      walked.x = (double)(g->player.position.x - floor(g->player.position.x));
       step.x = -1;
     }
     if (camera_plane.y > 0)
     {
-      walked.y = floor(g->player.position.y + 1) - g->player.position.y;
+      walked.y = (double)(floor(g->player.position.y + 1) - g->player.position.y);
       step.y = 1;
     }
     else
     {
-      walked.y = g->player.position.y - floor(g->player.position.y);
+      walked.y = (double)(g->player.position.y - floor(g->player.position.y));
       step.y = -1;
     }
     map_position.x = (int) floor(g->player.position.x);
@@ -267,9 +398,10 @@ void cast_rays(struct GameEngine *g)
         } 
       }
     }
+    g->rays.rays[x].camera_plane = camera_plane;
     if (exited)
     {
-      g->rays.rays[x].height = 0.0f;
+      g->rays.rays[x].height = 0;
       g->rays.rays[x].z_index = INFINITY;
       g->rays.rays[x].texture = 0;
     }
@@ -277,17 +409,48 @@ void cast_rays(struct GameEngine *g)
     {
       if (hit_x)
       {
-        g->rays.rays[x].height = floor(g->game.height / (walked.x - hip.x));
-        g->rays.rays[x].z_index = walked.x;
+        true_walk = (double) (map_position.x - g->player.position.x);
+        if (true_walk < 0)
+        {
+          true_walk *= -1;
+        }
+        hit_point = (double) (true_walk * hip.y)-floor(true_walk * hip.y);
       }
       else
       {
-        g->rays.rays[x].height = floor(g->game.height / (walked.y - hip.y));
-        g->rays.rays[x].z_index = walked.y;
+        true_walk = (double) (map_position.y - g->player.position.y);
+        if (true_walk < 0)
+        {
+          true_walk *= -1;
+        }
+        hit_point = (double) (true_walk * hip.x)-floor(true_walk * hip.x);
+      }
+      g->rays.rays[x].height = (int) floor(g->game.height / true_walk);
+      g->rays.rays[x].z_index = true_walk;
+      if (step.x < 0)
+      {
+        g->rays.rays[x].hit_point = 1 - hit_point; 
+      }
+      else
+      {
+        g->rays.rays[x].hit_point = hit_point;
       }
       g->rays.rays[x].texture = g->map.cells[map_position.y * g->map.cols + map_position.x];
     }
+    /*if (g->inputs.p)
+    {
+      print_ray(g->rays.rays[x]);
+    }*/
   }
+  g->inputs.p = false;
+}
+
+void print_ray(struct Ray ray)
+{
+  printf("Height: %i\tZ-Index: %f\tTexture: %i\tHit_point: %f\n",
+    ray.height, ray.z_index, ray.texture, ray.hit_point     
+  );
+
 }
 
 /* add code to bound the player to the map and slide */
@@ -396,11 +559,6 @@ void load_map(struct Map *map)
 int main(int argc, char *argv[])
 {
     struct GameEngine g;
-    /*struct Game game = {0};*/
-    /*struct Inputs inp = {false};*/
-    /*struct Rays rays;*/
-    /*struct Player player;*/
-    /*struct Map map;*/
     struct timeval current, last;
     double delta_ms, acum;
     int frames = 0;
@@ -439,7 +597,7 @@ int main(int argc, char *argv[])
       frames++;
       if (acum > MS_TO_SEC)
       {
-        printf("FPS: %i in %f\n",frames, acum);
+        /*printf("FPS: %i in %f\n",frames, acum);*/
         acum = 0.0f;
         frames =  0;
       }
