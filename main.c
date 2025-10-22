@@ -45,6 +45,7 @@ struct Player
 {
   Vec2f position;
   Vec2f direction;
+  Vec2f camera;
   float health;
   int current_gun;
 };
@@ -302,7 +303,7 @@ void draw(struct GameEngine *g)
 void cast_rays(struct GameEngine *g)
 {
   size_t x;
-  double camera_pos, proportion;
+  double camera_pos, coeficient;
   Vec2f camera_plane = {0.0f};
   Vec2i step = {0}; 
   Vec2f walked = {0.0};
@@ -319,16 +320,10 @@ void cast_rays(struct GameEngine *g)
     hit_y = false;
     exited = false;
     camera_pos = ((double)x / (g->game.width/2.0)) - 1.0;
-    camera_plane.x = camera_pos * (g->player.direction.y) + g->player.direction.x; 
-    camera_plane.y = camera_pos * (g->player.direction.x) + g->player.direction.y; 
-    if (g->inputs.p)
-    {
-      printf("Camera x: %lf\tCamera y: %lf\t, Direction X: %lf\tDirection Y: %lf\n", 
-          camera_plane.x, camera_plane.y,
-          g->player.direction.x,
-          g->player.direction.y );
-    }
     hip.x = INFINITY;
+    camera_plane.x = g->player.camera.x * camera_pos + g->player.direction.x;
+    camera_plane.y = g->player.camera.y * camera_pos + g->player.direction.y;
+
     if (camera_plane.y != 0.0)
     {
       hip.x = camera_plane.x / camera_plane.y;
@@ -345,6 +340,17 @@ void cast_rays(struct GameEngine *g)
       {
         hip.y *= -1;
       }
+    }
+
+    if (g->inputs.p)
+    {
+      printf("Cam X: %lf\tCam Y: %lf\tDir X: %lf\tDir Y: %lf\tCoef: %lf\n",
+          camera_plane.x,
+          camera_plane.y,
+          g->player.direction.x,
+          g->player.direction.y,
+          coeficient
+      );
     }
 
     if (camera_plane.x > 0)
@@ -507,11 +513,13 @@ void update_player(struct GameEngine *g, double delta_ms)
   if (g->inputs.d)
   {
     rotateV2f(&g->player.direction, proportion);
+    rotateV2f(&g->player.camera, proportion);
   }
 
   if (g->inputs.a)
   {
     rotateV2f(&g->player.direction, proportion * (-1));
+    rotateV2f(&g->player.camera, proportion * (-1));
   }
 }
 
@@ -568,6 +576,8 @@ int main(int argc, char *argv[])
     g.player.position.y = 3.0;
     g.player.direction.x = 0.0;
     g.player.direction.y = 1.0;
+    g.player.camera.x = 0.66;
+    g.player.camera.y = 0.0;
     g.rays.rays = malloc(sizeof(struct Ray) * GAME_WIDTH);
     g.rays.length = GAME_WIDTH;
     g.game.name = &GAME_WINDOW_NAME;

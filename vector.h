@@ -55,6 +55,6 @@ void scalar_multV2i(Vec2i *veco, float x);
 void scalar_multV2f(Vec2f *veco, float x);
 void scalar_multV3f(Vec3f *veco, float x);
 void scalar_multV3i(Vec3i *veco, float x);
-void rotateV2i(Vec2i *vec, float angle_rad);
-void rotateV2f(Vec2f *vec, float angle_rad);
+void rotateV2i(Vec2i *vec, double angle_rad);
+void rotateV2f(Vec2f *vec, double angle_rad);
 #endif

@@ -141,13 +141,13 @@ void scalar_multV3i(Vec3i *veco, float x)
 }
 
 
-void rotateV2i(Vec2i *vec, float angle_rad)
+void rotateV2i(Vec2i *vec, double angle_rad)
 {
   vec->x = (int) ((vec->x * cos(angle_rad)) - (vec->y * sin(angle_rad)));
   vec->y = (int) ((vec->x * sin(angle_rad)) + (vec->y * cos(angle_rad)));
 }
 
-void rotateV2f(Vec2f *vec, float angle_rad)
+void rotateV2f(Vec2f *vec, double angle_rad)
 {
   vec->x = (double) ((vec->x * cos(angle_rad)) - (vec->y * sin(angle_rad)));
   vec->y = (double) ((vec->x * sin(angle_rad)) + (vec->y * cos(angle_rad)));
